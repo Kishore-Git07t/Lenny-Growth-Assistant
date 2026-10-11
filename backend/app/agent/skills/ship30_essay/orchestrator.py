@@ -240,12 +240,13 @@ class Ship30EssayOrchestrator:
         sections = sanitized_sections
 
         if len(sections) < 4:
+            clean_topic = topic.strip().rstrip("?.")
             sections = [
-                ("The Conventional Trap and Core Problem", "Establish the hook, tension, and foundational thesis."),
-                ("First Principles & Trigger Thresholds", "Detail concrete operational metrics, timing, and conditions."),
-                ("The Execution Playbook & Tactical Mechanics", "Provide step-by-step implementation criteria and bullet rules."),
-                ("Counter-Intuitive Traps & Common Failures", "Analyze what breaks when teams take premature shortcuts."),
-                ("The 30-Day Action Checklist & Bottom Line", "Actionable synthesis and definitive closing takeaway."),
+                (f"The Core Challenge in {clean_topic}", f"Establish the core context, tension, and thesis regarding {clean_topic}."),
+                (f"First Principles & Strategic Thresholds", f"Detail concrete operational criteria, metrics, and foundations for {clean_topic}."),
+                (f"The Tactical Execution Playbook", f"Provide step-by-step implementation rules and concrete mechanisms for {clean_topic}."),
+                (f"Counter-Intuitive Traps & Common Failures", f"Analyze failure modes, premature shortcuts, and pitfalls in {clean_topic}."),
+                (f"Actionable Synthesis & Key Takeaways", f"Actionable synthesis and definitive closing takeaway regarding {clean_topic}."),
             ]
 
         return title, thesis, sections
@@ -461,6 +462,7 @@ class Ship30EssayOrchestrator:
         )
         total_sections = len(section_plans)
         drafted_sections: List[str] = []
+        omitted_sections: List[Tuple[str, str, str]] = []  # (heading, purpose, reason)
         previous_summary: Optional[str] = None
 
         for idx, (heading, purpose) in enumerate(section_plans, start=1):
@@ -472,20 +474,13 @@ class Ship30EssayOrchestrator:
 
             if remaining_budget() <= 5.0:
                 logger.warning(
-                    "Overall essay budget (%ss) exhausted before section %d; applying section fallback",
-                    self.total_timeout,
+                    "Overall essay budget exhausted (%ss remaining) before section %d ('%s'); omitting section to prevent placeholder fabrication",
+                    round(remaining_budget(), 1),
                     idx,
+                    heading,
                 )
-                drafted_sections.append(
-                    f"## {heading}\n\n"
-                    f"{purpose} As highlighted in Lenny's Podcast, execution rigor and validated milestones remain essential.\n\n"
-                    "- Validate direct customer engagement metrics.\n"
-                    "- Adhere to non-negotiable operational thresholds.\n"
-                    "- Re-evaluate decision milestones continuously."
-                )
+                omitted_sections.append((heading, purpose, "Execution time budget exhausted"))
                 continue
-
-            effective_section_timeout = min(float(self.section_timeout), remaining_budget())
 
             section_prompt = build_section_prompt(
                 section_index=idx,
@@ -499,14 +494,47 @@ class Ship30EssayOrchestrator:
                 previous_summary=previous_summary,
             )
 
-            try:
-                sec_res = await self.pi_client.generate_response(
-                    prompt=section_prompt,
-                    provider=provider,
-                    model=model,
-                    timeout_seconds=int(effective_section_timeout),
-                )
-                sec_text = sec_res.text.strip()
+            # Attempt drafting with safe retry within available budget
+            sec_text = ""
+            last_error = ""
+            max_attempts = 2 if remaining_budget() >= 25.0 else 1
+
+            for attempt in range(1, max_attempts + 1):
+                effective_section_timeout = min(float(self.section_timeout), remaining_budget() - 2.0)
+                if effective_section_timeout < 4.0:
+                    last_error = "Insufficient remaining execution budget"
+                    break
+
+                try:
+                    sec_res = await self.pi_client.generate_response(
+                        prompt=section_prompt,
+                        provider=provider,
+                        model=model,
+                        timeout_seconds=int(effective_section_timeout),
+                    )
+                    sec_text = sec_res.text.strip()
+                    if sec_text:
+                        break
+                except PiTimeoutError as e:
+                    last_error = f"Timed out after {int(effective_section_timeout)}s"
+                    logger.warning(
+                        "Stage 2 section %d ('%s') attempt %d timed out: %s",
+                        idx,
+                        heading,
+                        attempt,
+                        e,
+                    )
+                except Exception as e:
+                    last_error = str(e)
+                    logger.warning(
+                        "Stage 2 section %d ('%s') attempt %d failed: %s",
+                        idx,
+                        heading,
+                        attempt,
+                        e,
+                    )
+
+            if sec_text:
                 cleaned_sec = clean_section_markdown(
                     text=sec_text,
                     is_intro=(idx == 1),
@@ -520,27 +548,17 @@ class Ship30EssayOrchestrator:
                     is_intro=(idx == 1),
                     is_conclusion=(idx == total_sections),
                 )
+                trimmed_sec, _ = strip_draft_artifacts(trimmed_sec)
                 drafted_sections.append(trimmed_sec)
                 previous_summary = f"Section {idx} ('{heading}'): {trimmed_sec[:200]}..."
-            except PiTimeoutError as e:
+            else:
                 logger.warning(
-                    "Stage 2 section %d timed out after %s seconds; applying concise section fallback",
+                    "Stage 2 section %d ('%s') drafting failed (%s); omitting section to preserve factual integrity",
                     idx,
-                    int(effective_section_timeout),
+                    heading,
+                    last_error,
                 )
-                drafted_sections.append(
-                    f"## {heading}\n\n"
-                    f"{purpose} As discussed in Lenny's Podcast, execution discipline and metric rigor are essential.\n\n"
-                    "- Focus on direct customer signals before scaling.\n"
-                    "- Establish non-negotiable operational thresholds.\n"
-                    "- Review decision criteria weekly to avoid premature expansion."
-                )
-            except Exception as e:
-                logger.error("Stage 2 section %d failed: %s", idx, e)
-                drafted_sections.append(
-                    f"## {heading}\n\n"
-                    f"{purpose} Grounded evidence emphasizes structured milestones and high-signal execution."
-                )
+                omitted_sections.append((heading, purpose, last_error or "Section generation failed"))
 
         # -------------------------------------------------------------------
         # Stage 3 — Assemble and Validate Full Essay
@@ -599,7 +617,7 @@ class Ship30EssayOrchestrator:
 
         # Append terminal Sources block with clickable YouTube timestamps (strictly verified sources)
         sources_block = format_essay_sources(evidence_entries, valid_cited)
-        full_essay_content = assembled_markdown + sources_block
+        full_essay_content = (assembled_markdown + sources_block) if sources_block else assembled_markdown
 
         # Grounding validation against retrieved evidence
         grounding_audit = verify_essay_grounding(
@@ -624,7 +642,8 @@ class Ship30EssayOrchestrator:
             and not has_draft_artifacts
             and not has_unresolved_citations
             and not has_grounding_defects
-            and len(cleaned_sections) >= 3
+            and len(omitted_sections) == 0
+            and len(cleaned_sections) == total_sections
             and len(valid_cited) >= 1
         )
 
@@ -637,6 +656,15 @@ class Ship30EssayOrchestrator:
         disclaimer_parts = []
         if retrieval_res.disclaimer:
             disclaimer_parts.append(retrieval_res.disclaimer)
+        if omitted_sections:
+            omitted_names = ", ".join(f"'{h}'" for h, _, _ in omitted_sections)
+            disclaimer_parts.append(
+                f"Partial Draft Notice: {len(omitted_sections)} planned section(s) ({omitted_names}) could not be completed within the execution budget and were omitted to preserve factual grounding."
+            )
+        if final_word_count < MIN_ACCEPTABLE_WORDS:
+            disclaimer_parts.append(
+                f"Length Notice: The generated draft is {final_word_count} words (target: {MIN_ACCEPTABLE_WORDS}–{MAX_ACCEPTABLE_WORDS} words) to avoid ungrounded padding beyond verified podcast transcripts."
+            )
         if has_grounding_defects:
             diag_summary = "; ".join(grounding_audit["diagnostics"])
             disclaimer_parts.append(
@@ -644,11 +672,9 @@ class Ship30EssayOrchestrator:
             )
         effective_disclaimer = " ".join(disclaimer_parts) if disclaimer_parts else None
 
-        # Validate structured citations for API response and persistence
+        # Validate structured citations for API response and persistence (strictly verified sources)
         index_to_source = {entry.index: entry.source for entry in evidence_entries}
         validated_citations = [index_to_source[idx] for idx in valid_cited if idx in index_to_source]
-        if not validated_citations and evidence_entries:
-            validated_citations = [entry.source for entry in evidence_entries]
 
         # -------------------------------------------------------------------
         # Step 4: Persist in PostgreSQL

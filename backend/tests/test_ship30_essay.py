@@ -552,11 +552,11 @@ async def test_section_timeout_produces_partial_essay_safely(db_session: Session
     )
 
     mock_pi = MagicMock(spec=PiClient)
-    # Stage 1 succeeds, but Stage 2 sections time out
+    # Stage 1 succeeds, first section succeeds with grounded evidence, remaining sections time out
     mock_pi.generate_response = AsyncMock(
         side_effect=[
             PiGenerationResult(text=mock_outline_text, provider="ollama", model="qwen2.5:1.5b", raw_events=[]),
-            PiTimeoutError("Section 1 generation timed out after 180 seconds"),
+            PiGenerationResult(text="## Foundational Principle\n\nClose 10 customers yourself first [1]. This ensures direct learning from customer feedback.", provider="ollama", model="qwen2.5:1.5b", raw_events=[]),
             PiTimeoutError("Section 2 generation timed out after 180 seconds"),
             PiTimeoutError("Section 3 generation timed out after 180 seconds"),
             PiTimeoutError("Section 4 generation timed out after 180 seconds"),
@@ -581,6 +581,9 @@ async def test_section_timeout_produces_partial_essay_safely(db_session: Session
     assert result.session_id == session.id
     assert "Founder Sales Playbook" in result.title
     assert "### Sources" in result.content
+    assert "The 10-customer rule" not in result.content  # Purpose planning string never exposed
+    assert "execution rigor and validated milestones" not in result.content  # No fabricated generic assertions
+    assert result.disclaimer is not None and "Partial Draft Notice" in result.disclaimer
 
     # Persistence verification: assistant message is stored with status 'partial'
     messages, total = list_messages_by_session(db=db_session, session_id=session.id)
@@ -1998,4 +2001,204 @@ class TestEssayFactualGroundingSafeguards:
         assert total == 2
         assert msgs[1].source_metadata["status"] == "completed"
         assert msgs[1].source_metadata["grounding_audit"]["is_grounded"] is True
+
+
+# ===========================================================================
+# Targeted Tests: Quality, Topic Adherence, and Reliability Bug Fixes
+# ===========================================================================
+
+
+def test_strip_draft_artifacts_removes_imperative_drafting_instructions():
+    """Verify detection and removal of imperative drafting directives and objective tags."""
+    raw_draft = (
+        "## Giving Away Your Legos\n\n"
+        "Detail how leaders can apply Molly Graham's 'give away your legos' framework.\n\n"
+        "Scaling a startup requires managers to continually surrender familiar responsibilities.\n\n"
+        "- Provide a practical framework for delegating core duties.\n"
+        "- Establish emotional readiness for organizational restructuring.\n\n"
+        "Objective: Explain how leaders manage psychological resistance during headcount growth.\n\n"
+        "Molly Graham emphasizes that rapid scaling feels like getting your legos taken away [1].\n\n"
+        "Purpose: Concrete tactical advice for high-growth executive teams.\n\n"
+        "When leaders embrace this transition, organizational leverage multiplies."
+    )
+    cleaned, detected = strip_draft_artifacts(raw_draft)
+    assert len(detected) >= 4
+    assert "Detail how leaders" not in cleaned
+    assert "Provide a practical framework" not in cleaned
+    assert "Objective:" not in cleaned
+    assert "Purpose:" not in cleaned
+    assert "Molly Graham emphasizes that rapid scaling" in cleaned
+    assert "When leaders embrace this transition" in cleaned
+
+
+def test_strip_draft_artifacts_preserves_legitimate_explanatory_prose_containing_keywords():
+    """Verify that legitimate body sentences using phrases like 'detail how leaders' in prose are preserved."""
+    legitimate_text = (
+        "## Scaling Engineering Teams\n\n"
+        "Recent management studies detail how leaders navigate rapid headcount expansion without losing culture [1].\n\n"
+        "These operational playbooks provide a practical framework when hiring senior managers.\n\n"
+        "Executive reviews explain how leaders maintain alignment during quarterly planning."
+    )
+    cleaned, detected = strip_draft_artifacts(legitimate_text)
+    assert len(detected) == 0
+    assert cleaned == legitimate_text.strip()
+    assert "detail how leaders navigate" in cleaned
+    assert "provide a practical framework when hiring" in cleaned
+    assert "explain how leaders maintain" in cleaned
+
+
+def test_strict_citation_integrity_when_no_inline_citations():
+    """Verify that when no inline citations are cited, format_essay_sources returns empty and no ungrounded citations are attached."""
+    evidence = [
+        EvidenceEntry(
+            index=1,
+            source=_mock_citation(title="Molly Graham on Career Growth", guest="Molly Graham"),
+            header="[1] Episode: Molly Graham on Career Growth",
+            excerpt="Give away your legos as the team doubles.",
+        ),
+        EvidenceEntry(
+            index=2,
+            source=_mock_citation(title="Scaling Organizations", guest="Molly Graham"),
+            header="[2] Episode: Scaling Organizations",
+            excerpt="Embrace the discomfort of giving away your job every six months.",
+        ),
+    ]
+
+    # Empty cited_indices must return empty string (never fallback to all evidence entries)
+    sources_text = format_essay_sources(evidence_entries=evidence, cited_indices=[])
+    assert sources_text == ""
+
+
+@pytest.mark.asyncio
+async def test_failed_sections_omitted_without_purpose_leakage_or_fabricated_content(db_session: Session):
+    """Verify that when section drafting fails, purpose instructions are not injected, sections are omitted cleanly, and status is partial."""
+    session = create_session(db=db_session, title="Partial Omission Test")
+    mock_retrieval_svc = MagicMock(spec=SemanticRetrievalService)
+    citation = _mock_citation(title="Career Growth", guest="Molly Graham")
+    mock_retrieval_svc.retrieve.return_value = RetrievalResponse(
+        query="Molly Graham career growth",
+        status="success",
+        items=[citation],
+        coverage=_mock_coverage(),
+        disclaimer=None,
+    )
+
+    mock_outline = (
+        "TITLE: Giving Away Your Legos: Molly Graham's Career Growth Playbook\n"
+        "THESIS: Sustainable leadership growth requires actively delegating your job every six months.\n"
+        "SECTION 1: The Psychology of Growth | PURPOSE: Detail how leaders navigate the fear of delegation | EVIDENCE: [1]\n"
+        "SECTION 2: The Six-Month Cycle | PURPOSE: Provide a practical framework for role evolution | EVIDENCE: [1]\n"
+        "SECTION 3: Building Trust | PURPOSE: Explain how to train successors without micromanagement | EVIDENCE: [1]\n"
+        "SECTION 4: Organizational Traps | PURPOSE: Detail failure modes when founders hoard tasks | EVIDENCE: [1]\n"
+        "SECTION 5: The Growth Checklist | PURPOSE: Summarize concrete next steps | EVIDENCE: [1]\n"
+    )
+
+    valid_sec1 = (
+        "## The Psychology of Growth\n\n"
+        "Molly Graham observes that scaling a startup forces leaders to confront the discomfort of giving away their legos [1]. "
+        "When an organization doubles in size, tasks that defined your initial role must be transitioned to newer team members. "
+        "Resisting this transition creates severe operational bottlenecks across engineering and product teams.\n\n"
+        "- Acknowledge emotional friction when transferring ownership of core systems.\n"
+        "- Redefine personal success around team velocity rather than individual contribution.\n"
+        "- Proactively train incoming leads before responsibilities become overwhelming."
+    )
+
+    mock_pi = MagicMock(spec=PiClient)
+    # Stage 1 succeeds, Section 1 succeeds, Sections 2-5 fail/timeout
+    mock_pi.generate_response = AsyncMock(
+        side_effect=[
+            PiGenerationResult(text=mock_outline, provider="ollama", model="qwen2.5:1.5b", raw_events=[]),
+            PiGenerationResult(text=valid_sec1, provider="ollama", model="qwen2.5:1.5b", raw_events=[]),
+            PiTimeoutError("Section 2 timed out"),
+            PiTimeoutError("Section 3 timed out"),
+            PiTimeoutError("Section 4 timed out"),
+            PiTimeoutError("Section 5 timed out"),
+        ]
+    )
+
+    orchestrator = Ship30EssayOrchestrator(
+        pi_client=mock_pi,
+        retrieval_service=mock_retrieval_svc,
+        total_timeout_seconds=600,
+        section_timeout_seconds=120,
+    )
+
+    res = await orchestrator.generate_essay(
+        session_id=session.id,
+        topic="Molly Graham career growth and giving away your legos",
+        db=db_session,
+    )
+
+    # Truthful partial reporting
+    assert res.status == "partial"
+    assert "Giving Away Your Legos" in res.title
+    assert "The Psychology of Growth" in res.content
+    assert "[1]" in res.content
+    assert "### Sources" in res.content
+
+    # Planning directives and purposes must NOT appear in final essay content
+    assert "Detail how leaders navigate the fear of delegation" not in res.content
+    assert "Provide a practical framework for role evolution" not in res.content
+    assert "Detail failure modes when founders hoard tasks" not in res.content
+    assert "As discussed in Lenny's Podcast, execution discipline" not in res.content
+    assert "execution rigor and validated milestones" not in res.content
+
+    # Advisory disclaimer must explain the omitted sections truthfully
+    assert res.disclaimer is not None
+    assert "Partial Draft Notice: 4 planned section(s)" in res.disclaimer
+    assert "The Six-Month Cycle" in res.disclaimer
+
+    # Citations attached must only be those actually cited in valid content
+    assert len(res.citations) == 1
+
+
+def test_outline_and_section_prompts_enforce_topic_adherence():
+    """Verify that outline and section prompts contain topic adherence mandates to prevent generic drift."""
+    evidence = [
+        EvidenceEntry(
+            index=1,
+            source=_mock_citation(title="Molly Graham Career Growth", guest="Molly Graham"),
+            header="[1] Episode: Molly Graham Career Growth",
+            excerpt="Give away your legos continually.",
+        )
+    ]
+
+    outline_prompt = build_outline_prompt(
+        topic="Molly Graham's career-growth insights",
+        audience="Product Leaders",
+        evidence_entries=evidence,
+    )
+    assert "CRITICAL TOPIC ADHERENCE MANDATE" in outline_prompt
+    assert "Molly Graham's career-growth insights" in outline_prompt
+    assert "DO NOT drift into generic startup topics" in outline_prompt
+
+    section_prompt = build_section_prompt(
+        section_index=2,
+        total_sections=5,
+        heading="The Six-Month Delegation Cycle",
+        purpose="Explain how managers relinquish duties every six months",
+        target_words=260,
+        topic="Molly Graham's career-growth insights",
+        audience="Product Leaders",
+        evidence_entries=evidence,
+    )
+    assert "CRITICAL TOPIC ADHERENCE & GROUNDING MANDATE" in section_prompt
+    assert "DO NOT echo or repeat the planning objective" in section_prompt
+    assert "The Six-Month Delegation Cycle" in section_prompt
+
+
+def test_fallback_outline_anchored_to_requested_topic():
+    """Verify that fallback outline sections anchor to the requested topic rather than generic SaaS tropes."""
+    orchestrator = Ship30EssayOrchestrator(pi_client=MagicMock(spec=PiClient))
+    title, thesis, sections = orchestrator._parse_outline_response(
+        outline_text="Malformed outline without proper section markers",
+        topic="Molly Graham career growth",
+        audience="Product Leaders",
+    )
+    assert len(sections) == 5
+    # Headings must be tied to the topic
+    assert any("Molly Graham career growth" in h for h, _ in sections)
+    # Purposes must also anchor to the topic
+    assert any("Molly Graham career growth" in p for _, p in sections)
+
 

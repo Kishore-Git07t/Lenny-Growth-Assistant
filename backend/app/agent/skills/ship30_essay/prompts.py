@@ -97,6 +97,12 @@ TARGET READER: {audience}
 --- AVAILABLE VERIFIED PODCAST EVIDENCE ---
 {evidence_text}
 
+--- CRITICAL TOPIC ADHERENCE MANDATE ---
+Every single section, argument, and takeaway MUST directly explore and answer the exact topic: "{topic}".
+- If the topic specifies a particular guest (e.g. Molly Graham, Jason Lemkin, Elena Verna), framework (e.g. "giving away your legos", "freemium vs trial", "sales hiring thresholds"), or operational domain (e.g. career growth, scaling organizations), the outline MUST be firmly anchored to that specific person's insights and that framework.
+- DO NOT drift into generic startup topics, founder personality psychology, or unrelated management clichés.
+- Ensure all 5 section titles and objectives explicitly tie back to "{topic}".
+
 --- SHIP 30 FOR 30 DIGITAL WRITING PRINCIPLES ---
 1. Clear Over Clever Headline: Create a concise, natural, punchy title (6 to 10 words) tailored to {audience}.
    - State an explicit benefit, counter-intuitive insight, or clear outcome.
@@ -183,7 +189,7 @@ def build_section_prompt(
         )
     elif is_conclusion:
         role_instruction = (
-            "This is the closing section. Provide a high-impact action checklist, "
+            f"Start with '## {heading}'. This is the closing section. Provide a high-impact action checklist, "
             "synthesize key decision criteria, and finish with a memorable 1-sentence bottom-line takeaway."
         )
     else:
@@ -197,7 +203,7 @@ def build_section_prompt(
     return f"""You are a master digital writer executing the Ship 30 for 30 essay framework.
 
 TASK: Write Section {section_index} of {total_sections} for a comprehensive digital essay.
-TARGET WORD BUDGET: Strictly ~{target_words} words (hard ceiling {max_words} words; DO NOT exceed {max_words} words).
+TARGET WORD BUDGET: Aim for ~{target_words} words (target range: {target_words - 25} to {max_words} words; do not exceed {max_words} words).
 
 TOPIC: {topic}
 TARGET AUDIENCE: {audience}
@@ -207,23 +213,31 @@ SECTION OBJECTIVE: {purpose}
 --- VERIFIED PODCAST TRANSCRIPT EVIDENCE ---
 {evidence_text}
 
---- SHIP 30 FOR 30 FORMATTING REQUIREMENTS ---
-1. {role_instruction}
-2. Objective Editorial Voice: Write in an authoritative, objective third-person editorial voice tailored to {audience}. NEVER write in the first person singular ("I", "me", "my", "as a founder I often wonder"). NEVER impersonate the podcast speakers or Lenny Rachitsky. NEVER invent personal founder anecdotes.
-3. Strict Factual Grounding & Evidence Safeguards: Ground all claims exclusively in the VERIFIED PODCAST TRANSCRIPT EVIDENCE above.
+--- CRITICAL TOPIC ADHERENCE & GROUNDING MANDATE ---
+1. Strict Topic Adherence: Every sentence, paragraph, and bullet in this section MUST directly answer and explore the user's requested topic: "{topic}".
+   - Do NOT drift into generic startup tropes, founder personality traits, or tangential topics.
+   - Anchor all discussions in the specific guest frameworks and principles requested in "{topic}".
+2. Section Scope: Fulfill the section heading ("{heading}") and section objective ("{purpose}") directly. DO NOT echo or repeat the planning objective, section purpose, or outline instructions in the finished prose.
+3. {role_instruction}
+4. Objective Editorial Voice: Write in an authoritative, objective third-person editorial voice tailored to {audience}. NEVER write in the first person singular ("I", "me", "my", "as a founder I often wonder"). NEVER impersonate the podcast speakers or Lenny Rachitsky. NEVER invent personal founder anecdotes.
+5. No Scaffolding, Author Notes, or Planning Echoes:
+   - DO NOT echo or repeat the planning objective, section purpose, or outline directives. NEVER write out phrases like "Detail how...", "Provide a practical framework...", "Explain how...", "In this section...", or "Objective:...".
+   - Write ONLY polished, reader-facing publication prose. Do not include meta-commentary, placeholders, or author scaffolding.
+6. Strict Factual Grounding & Evidence Safeguards: Ground all claims exclusively in the VERIFIED PODCAST TRANSCRIPT EVIDENCE above.
    - Grounded Metrics & Timelines: All numbers, customer counts, percentages, and timelines MUST originate directly from the verified transcript text above. NEVER invent arbitrary numbers, percentage splits (e.g. '20% of time'), or artificial timelines (e.g. 'first 100 days'). If the transcript speaks qualitatively, keep the recommendation qualitative.
    - Grounded Company Examples: NEVER introduce ungrounded company case studies (e.g. Canva, Figma, Stripe, Airbnb) unless explicitly mentioned in the verified evidence above.
    - Quotation Fidelity: Direct quotations inside quotation marks ("...") MUST be authentic, near-verbatim statements from the retrieved transcript. If paraphrasing or summarizing a speaker's perspective, integrate it into third-person editorial prose without quotation marks.
    - Honest Attribution: Distinguish transcript evidence from editorial interpretation. A citation tag (e.g. [1]) must strictly support the adjacent factual claim, never unrelated editorial commentary.
    - Use ONLY citation numbers that exist in the evidence above (e.g., [1], [2]). NEVER cite invented numbers like [5].
    - Place ONLY clean bracketed markers like [1] in prose. NEVER copy prompt metadata such as '(Episode: ...)' or 'Evidence: [N]'.
-4. No Scaffolding or Author Notes: Never include instructions, commentary, or placeholders such as "Please replace them with...", "insert evidence here", or "Note to author". Write only final, reader-facing prose.
-5. Varied Sentence Rhythm: Alternate 1-sentence punchy lines with 2-3 sentence explanations. Never write huge walls of text.
-6. Skimmability: Use a formatted bullet list (- item) for core steps, symptoms, or criteria.
-7. Bold Emphasis: Bold (**phrase**) the most critical 2-3 key insights.
-8. Strict Grounding: Cite supporting points with [1], [2] matching the evidence. Do NOT invent quotes, guests, or numbers.
-9. Conciseness & Hard Ceiling: Write exactly 2 focused body paragraphs and 1 short 3-bullet list. Stay within {target_words} words (maximum {max_words} words). Conclude cleanly as soon as the core point is made without redundant repetition.
-10. Output Format: Output clean, raw Markdown directly. Do NOT wrap your output in ```markdown or ``` code fences. Do NOT repeat the essay title as an H1 or H2. Do NOT insert podcast episode titles as headings.
+7. Varied Sentence Rhythm: Alternate 1-sentence punchy lines with 2-3 sentence explanations. Never write huge walls of text.
+8. Skimmability: Use a formatted bullet list (- item) for core steps, symptoms, or criteria.
+9. Bold Emphasis: Bold (**phrase**) the most critical 2-3 key insights.
+10. Substantive Depth & Word Budget: Aim for ~{target_words} words (range: {target_words - 25} to {max_words} words).
+   - Write 2 to 3 substantive, well-developed body paragraphs that thoroughly explain the operational mechanics and evidence.
+   - Include 1 structured 3-to-4 item bullet list where each bullet point provides a complete, actionable principle with meaningful explanation.
+   - GROUNDING FIRST: Never pad text with unsupported filler. If the transcript evidence on a specific point is concise, provide thorough editorial analysis of that evidence rather than fabricating external claims.
+11. Output Format: Output clean, raw Markdown directly. Do NOT wrap your output in ```markdown or ``` code fences. Do NOT repeat the essay title as an H1 or H2. Do NOT insert podcast episode titles as headings.
 
 Write the complete Markdown text for this section now:
 """
@@ -317,13 +331,17 @@ DRAFT_ARTIFACT_PATTERNS = [
     # "Please insert...", "Please fill in...", "Please add...", "Please update...", "Please provide..."
     r"(?i)\bPlease (?:insert|fill in|add|update|provide)\b[^\n.!?]*[.!?]?",
     # "[insert evidence here]", "[insert ...]", "[fill in ...]", "[placeholder]"
-    r"(?i)\[\s*(?:insert|replace|fill in|todo|tbd|placeholder)[^\]]*\]",
+    r"(?i)\[[ \t]*(?:insert|replace|fill in|todo|tbd|placeholder|evidence|source)[^\]\n]*\]",
     # "TODO: ...", "TBD: ...", "FIXME: ..."
-    r"(?i)\b(?:TODO|TBD|FIXME)\s*:\s*[^\n]+",
+    r"(?i)\b(?:TODO|TBD|FIXME)[ \t]*:[ \t]*[^\n]+",
     # "Note to author: ...", "Author's note: ...", "Drafting note: ...", "Editor's note: ..."
-    r"(?i)\b(?:Note to author|Author's note|Drafting note|Editor's note)\s*:\s*[^\n]+",
+    r"(?i)\b(?:Note to author|Author's note|Drafting note|Editor's note)[ \t]*:[ \t]*[^\n]+",
     # Model meta-commentary: "In this draft, ...", "In this section, please ..."
-    r"(?i)\bIn this draft,\s*[^\n.!?]*[.!?]?",
+    r"(?i)\bIn this draft,[ \t]*[^\n.!?]*[.!?]?",
+    # Section directive tags: "Objective: ...", "Purpose: ...", "Drafting instructions: ..."
+    r"(?im)^[ \t]*(?:[-*•][ \t]*)?(?:Objective|Purpose|Goal|Instructions?|Drafting instructions?)[ \t]*:[ \t]*[^\n]+",
+    # Imperative drafting instructions and planning directives (at line or bullet start, e.g. "Detail how leaders...", "- Provide a practical framework...")
+    r"(?im)^[ \t]*(?:[-*•][ \t]*)?(?:Detail how leaders\b|Detail how\b|Provide a practical framework\b|Provide a framework\b|Explain how leaders\b|Detail the framework\b)[^\n]*",
 ]
 
 
@@ -345,6 +363,8 @@ def strip_draft_artifacts(text: str) -> Tuple[str, List[str]]:
                 detected.append(m.strip())
             cleaned = re.sub(pat, "", cleaned)
 
+    # Clean up empty bullet lines or bullets that only contain punctuation
+    cleaned = re.sub(r"(?m)^\s*[-*•]\s*$", "", cleaned)
     # Clean up empty lines or spaces left behind
     cleaned = re.sub(r"[ \t]+", " ", cleaned)
     cleaned = re.sub(r"\n\s*\n\s*\n+", "\n\n", cleaned)
@@ -839,9 +859,9 @@ def format_essay_sources(
         if idx not in unique_indices:
             unique_indices.append(idx)
 
-    # Fallback to all entries if model omitted citation brackets
+    # Do not attach unreferenced sources if text omitted inline citations
     if not unique_indices:
-        unique_indices = [entry.index for entry in evidence_entries]
+        return ""
 
     index_to_entry = {entry.index: entry for entry in evidence_entries}
     lines = ["\n\n---\n\n### Sources"]
@@ -1062,10 +1082,14 @@ def verify_essay_grounding(
         for c_idx in cited_in_sent:
             if c_idx in index_to_entry:
                 entry = index_to_entry[c_idx]
-                # Use actual EvidenceEntry fields: excerpt, header, source.guest_name
+                # Use actual EvidenceEntry fields: excerpt, header, source.guest_name, source.episode_title, source.content
+                entry_source = getattr(entry, "source", None)
+                source_content = getattr(entry_source, "content", "") if entry_source else ""
+                source_title = getattr(entry_source, "episode_title", "") if entry_source else ""
+                source_guest = getattr(entry_source, "guest_name", "") if entry_source else ""
                 entry_text_clean = (
                     f"{getattr(entry, 'excerpt', '')} {getattr(entry, 'header', '')} "
-                    f"{getattr(entry.source, 'guest_name', '') if getattr(entry, 'source', None) else ''}"
+                    f"{source_guest} {source_title} {source_content}"
                 ).lower()
                 # Extract content words from sentence
                 sent_clean = re.sub(r"[^\w\s]", " ", sent.lower())
