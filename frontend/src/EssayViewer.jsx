@@ -267,16 +267,16 @@ export default function EssayViewer({
     <article className="essay-viewer-card" aria-label="Generated Essay Article">
       {/* Top Action & Navigation Bar */}
       <div className="essay-toolbar">
-        <div className="toolbar-left">
+        <div className="toolbar-left toolbar-status-row">
           <span className={`status-pill ${statusPillClass}`}>
             {statusPillLabel}
           </span>
           <span className="word-count-pill">
-            <strong>{essay.word_count?.toLocaleString()}</strong> / {essay.target_word_count || 1250} words
+            <strong>{essay.word_count?.toLocaleString()}</strong> / {(essay.target_word_count || 1250).toLocaleString()} words
           </span>
         </div>
 
-        <div className="toolbar-right">
+        <div className="toolbar-right toolbar-actions-row">
           <button
             type="button"
             className="btn-toolbar-action btn-copy-markdown"
