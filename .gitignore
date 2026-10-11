@@ -1,0 +1,61 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+
+# Private development documentation and local logs
+.local/
+.pi/
+
+# Python virtual environments and caches
+venv/
+.venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Node & Frontend build output and caches
+node_modules/
+dist/
+build/
+.npm/
+.eslintcache/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vite/
+
+# Database, data corpora, and local models
+*.sqlite3
+*.db
+transcripts_raw/
+data/raw/
+corpus/
+.local/corpus/
+models/
+*.bin
+*.onnx
+
+# OS & IDE temporary files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.tmp
+*.temp
+
+# Do NOT ignore public assessment deliverables:
+# README.md, PRD.md, design.md, architecture.md, .env.example, agent_transcripts/

@@ -1,0 +1,144 @@
+# ==============================================================================
+# Lenny Growth Assistant - Complete Multi-Container Docker Stack
+#
+# Services:
+#   1. postgres: PostgreSQL 17 with pgvector extension (persistent vector store)
+#   2. backend:  FastAPI application with genuine Pi Coding Agent Node.js runtime
+#   3. frontend: Production React application served via lightweight Nginx
+#
+# Hardware profile: Optimized for 8 GB RAM laptop running Windows 11 & Docker Desktop.
+# Total stack memory limit: ~2.3 GB RAM, leaving ample memory for host OS & Ollama.
+# ==============================================================================
+
+services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL Database with pgvector Extension
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: lenny_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-lenny_assistant}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_buffers=128MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "maintenance_work_mem=32MB"
+      - "-c"
+      - "max_connections=50"
+    ports:
+      # Bind to localhost to prevent external exposure; default port 5432
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # Named volume preserving sessions, transcripts, and vector embeddings
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-lenny_assistant}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  # ----------------------------------------------------------------------------
+  # 2. FastAPI Backend & Pi Coding Agent Runtime
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: lenny_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      # By default connects to the compose postgres service.
+      # Set DOCKER_DATABASE_URL in .env to point to an existing host database if desired.
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-lenny_assistant}}
+      # Connect to Ollama running on the Windows host machine via Docker Desktop networking
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-nomic-embed-text}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      # Cloud LLM provider: Google Gemini API (Free tier via Google AI Studio)
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Optional legacy cloud keys (retained for backward compatibility)
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-3-5-sonnet-20241022}
+      # CORS: permits both production container port 8080 and dev server port 5173
+      BACKEND_CORS_ORIGINS: '["http://localhost:8080", "http://127.0.0.1:8080", "http://localhost:5173", "http://127.0.0.1:5173"]'
+      PI_AGENT_TIMEOUT_SECONDS: ${PI_AGENT_TIMEOUT_SECONDS:-120}
+      ESSAY_OUTLINE_TIMEOUT_SECONDS: ${ESSAY_OUTLINE_TIMEOUT_SECONDS:-180}
+      ESSAY_SECTION_TIMEOUT_SECONDS: ${ESSAY_SECTION_TIMEOUT_SECONDS:-180}
+      ESSAY_TOTAL_TIMEOUT_SECONDS: ${ESSAY_TOTAL_TIMEOUT_SECONDS:-900}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    extra_hosts:
+      # Enables host.docker.internal DNS resolution to reach host Ollama on port 11434
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1536M
+
+  # ----------------------------------------------------------------------------
+  # 3. Production React Frontend & Nginx Reverse Proxy
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: lenny_frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      # Host port 8080 avoids conflict with Vite dev server on port 5173
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+volumes:
+  # Isolated named volume for Compose stack (does not collide with dev database)
+  postgres_data:
+    name: ${DOCKER_POSTGRES_VOLUME:-lenny_compose_postgres_data}
+
+networks:
+  default:
+    name: lenny_network

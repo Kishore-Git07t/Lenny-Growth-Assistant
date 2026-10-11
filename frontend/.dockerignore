@@ -1,0 +1,11 @@
+# Frontend Docker Build Context Ignore List
+node_modules/
+dist/
+build/
+.npm/
+.eslintcache/
+npm-debug.log*
+yarn-debug.log*
+.vite/
+.DS_Store
+Thumbs.db

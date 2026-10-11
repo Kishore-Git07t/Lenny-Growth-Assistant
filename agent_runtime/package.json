@@ -1,0 +1,12 @@
+{
+  "name": "lenny-growth-assistant-agent-runtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Project-local Pi Coding Agent runtime for Lenny Growth Assistant",
+  "scripts": {
+    "pi": "pi"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "^1.0.0"
+  }
+}

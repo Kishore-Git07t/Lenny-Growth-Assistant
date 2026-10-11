@@ -1,0 +1,22 @@
+# Core Framework
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+pydantic>=2.8.0,<3.0.0
+pydantic-settings>=2.4.0,<3.0.0
+
+# Database & Persistence (Phase 2)
+sqlalchemy>=2.0.30,<3.0.0
+psycopg[binary]>=3.2.0,<4.0.0
+alembic>=1.13.0,<2.0.0
+
+# Testing and HTTP Client
+pytest>=8.3.0,<9.0.0
+pytest-asyncio>=0.24.0,<1.0.0
+httpx>=0.27.0,<1.0.0
+
+# Environment and Utilities
+python-dotenv>=1.0.1,<2.0.0
+pyyaml>=6.0.1,<7.0.0
+
+# Vector Database Support (Phase 3.2B-2)
+pgvector>=0.3.6,<1.0.0
