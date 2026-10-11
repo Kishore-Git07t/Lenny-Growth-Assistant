@@ -43,7 +43,7 @@ transcripts_raw/
 data/raw/
 corpus/
 .local/corpus/
-models/
+/models/
 *.bin
 *.onnx
 
