@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import EssayViewer from './EssayViewer.jsx';
 import HtmlArtifactViewer from './HtmlArtifactViewer.jsx';
+import Icon from './Icon.jsx';
 
 /**
  * Right panel component displaying:
@@ -61,7 +62,7 @@ export default function SourcePanel({
           onClick={() => handleTabSwitch('html')}
           title="HTML/CSS Design Artifact Live Preview"
         >
-          <span>🎨</span> HTML Artifact
+          <Icon name="layout" size={14} /> <span>HTML Artifact</span>
           {hasHtmlArtifact && <span className="tab-indicator-dot"></span>}
           {isGeneratingHtml && <span className="tab-spinner-mini"></span>}
         </button>
@@ -74,7 +75,7 @@ export default function SourcePanel({
           onClick={() => handleTabSwitch('essay')}
           title="Ship 30 for 30 Digital Essay"
         >
-          <span>📑</span> Essay Artifact
+          <Icon name="pen" size={14} /> <span>Essay Artifact</span>
           {hasEssay && <span className="tab-indicator-dot"></span>}
           {isGeneratingEssay && <span className="tab-spinner-mini"></span>}
         </button>
@@ -87,7 +88,7 @@ export default function SourcePanel({
           onClick={() => handleTabSwitch('sources')}
           title="Retrieved Podcast Citations & Coverage"
         >
-          <span>📚</span> Sources
+          <Icon name="book-open" size={14} /> <span>Sources</span>
           <span className="tab-count-badge">{hasCitations ? citations.length : 0}</span>
         </button>
       </div>
@@ -177,7 +178,9 @@ export default function SourcePanel({
 
                 {disclaimer && (
                   <div className="partial-index-callout">
-                    <div className="disclaimer-title">⚠️ Partial Index Coverage Notice</div>
+                    <div className="disclaimer-title">
+                      <Icon name="alert-triangle" size={14} /> Partial Index Coverage Notice
+                    </div>
                     <p className="disclaimer-text">{disclaimer}</p>
                   </div>
                 )}
@@ -192,7 +195,9 @@ export default function SourcePanel({
 
               {!hasCitations ? (
                 <div className="citations-empty-state">
-                  <div className="empty-icon">🎧</div>
+                  <div className="empty-icon">
+                    <Icon name="mic" size={26} />
+                  </div>
                   <p className="empty-headline">No Retrieved Sources for Current View</p>
                   <p className="empty-subtext">
                     Ask a question about Lenny's Podcast. Retrieved transcript passages with verbatim excerpts
@@ -227,7 +232,7 @@ export default function SourcePanel({
                         <div className="citation-meta-row">
                           {cite.timestamp_label && (
                             <span className="citation-timestamp-pill">
-                              ⏱️ {cite.timestamp_label}
+                              <Icon name="clock" size={11} /> {cite.timestamp_label}
                             </span>
                           )}
                           {simPercent && (
@@ -254,8 +259,9 @@ export default function SourcePanel({
                               className="btn-youtube-link"
                               title="Open timestamped video on YouTube"
                             >
-                              <span>▶</span> Watch on YouTube{' '}
-                              {cite.timestamp_label ? `at ${cite.timestamp_label}` : ''} ↗
+                              <Icon name="play" size={11} /> Watch on YouTube{' '}
+                              {cite.timestamp_label ? `at ${cite.timestamp_label}` : ''}{' '}
+                              <Icon name="external-link" size={11} />
                             </a>
                           </div>
                         )}
@@ -275,14 +281,14 @@ export default function SourcePanel({
                   className="btn-switch-to-essay"
                   onClick={() => handleTabSwitch('html')}
                 >
-                  <span>🎨</span> {hasHtmlArtifact ? 'View HTML Artifact' : 'Create HTML Artifact'} →
+                  <Icon name="layout" size={13} /> {hasHtmlArtifact ? 'View HTML Artifact' : 'Create HTML Artifact'} →
                 </button>
                 <button
                   type="button"
                   className="btn-switch-to-essay"
                   onClick={() => handleTabSwitch('essay')}
                 >
-                  <span>📑</span> {hasEssay ? 'View Saved Essay' : 'Generate Ship 30 Essay'} →
+                  <Icon name="pen" size={13} /> {hasEssay ? 'View Saved Essay' : 'Generate Ship 30 Essay'} →
                 </button>
               </div>
             </section>

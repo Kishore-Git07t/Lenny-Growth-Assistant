@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   fetchHealth,
   fetchSessions,
@@ -15,6 +15,7 @@ import {
 import SafeMarkdown from './SafeMarkdown.jsx';
 import SourcePanel from './SourcePanel.jsx';
 import HtmlArtifactModal from './HtmlArtifactModal.jsx';
+import Icon from './Icon.jsx';
 
 const LOCAL_STORAGE_ACTIVE_SESSION = 'lenny_active_session_id';
 const LOCAL_STORAGE_SELECTED_PROVIDER = 'lenny_selected_provider';
@@ -62,6 +63,24 @@ export function getPendingIndicatorInfo(provider) {
   return { isCloud, model, label, hint, providerLabel };
 }
 
+/**
+ * Format clean, non-redundant model selector option label.
+ * E.g., "Local · Ollama (qwen2.5:1.5b)" or "Cloud · Google Gemini (gemini-3.8-flash)"
+ * @param {Object} prov
+ * @returns {string}
+ */
+export function formatProviderOptionLabel(prov) {
+  if (!prov) return '';
+  const typeLabel = prov.type === 'local' ? 'Local' : 'Cloud';
+  let cleanName = prov.name || (prov.type === 'local' ? 'Ollama' : 'Google Gemini');
+  const match = cleanName.match(/^(?:Local|Cloud)\s*\((.+)\)$/i);
+  if (match) {
+    cleanName = match[1];
+  }
+  const unconfiguredNotice = !prov.is_configured ? ' [Key Needed]' : '';
+  return `${typeLabel} · ${cleanName} (${prov.model})${unconfiguredNotice}`;
+}
+
 export default function App() {
   // Session & conversation state
   const [sessions, setSessions] = useState([]);
@@ -74,6 +93,25 @@ export default function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [inputText, setInputText] = useState('');
+  
+  // Collapsible state for grouping untitled conversations (collapsed by default)
+  const [isUntitledOpen, setIsUntitledOpen] = useState(false);
+
+  // Group conversations into meaningful titled sessions vs "Untitled Conversation" sessions
+  const { titledSessions, untitledSessions, hasActiveUntitled } = useMemo(() => {
+    const titled = [];
+    const untitled = [];
+    for (const s of sessions) {
+      const trimmedTitle = (s.title || '').trim();
+      if (!trimmedTitle || trimmedTitle === 'Untitled Conversation') {
+        untitled.push(s);
+      } else {
+        titled.push(s);
+      }
+    }
+    const hasActive = untitled.some(s => s.id === activeSessionId);
+    return { titledSessions: titled, untitledSessions: untitled, hasActiveUntitled: hasActive };
+  }, [sessions, activeSessionId]);
   
   // Active citation and metadata inspector state
   const [activeCitations, setActiveCitations] = useState([]);
@@ -715,7 +753,9 @@ export default function App() {
       {/* Header */}
       <header className="app-header">
         <div className="brand-section">
-          <div className="brand-icon">🎙️</div>
+          <div className="brand-icon">
+            <Icon name="mic" size={18} />
+          </div>
           <div>
             <h1 className="brand-title">Lenny Growth Assistant</h1>
             <p className="brand-subtitle">Product & Growth Intelligence from Lenny's Podcast</p>
@@ -730,7 +770,7 @@ export default function App() {
             onClick={() => setIsHtmlModalOpen(true)}
             title="Create a modern, responsive HTML/CSS design artifact"
           >
-            <span>🎨</span> Create HTML Artifact
+            <Icon name="layout" size={14} /> Create HTML Artifact
           </button>
 
           {/* Discoverable Essay Generation Header Action */}
@@ -740,7 +780,7 @@ export default function App() {
             onClick={() => setActiveArtifactTab('essay')}
             title="Generate or view Ship 30 for 30 digital essay"
           >
-            <span>✍️</span> Generate Essay
+            <Icon name="pen" size={14} /> Generate Essay
           </button>
 
           <span className={`badge ${backendStatus.online ? 'badge-backend-online' : 'badge-backend-offline'}`}>
@@ -751,7 +791,7 @@ export default function App() {
           <div className="provider-selector-container">
             <div className="provider-selector-box">
               <span className="provider-icon">
-                {activeProviderObj.type === 'local' ? '💻' : '☁️'}
+                <Icon name={activeProviderObj.type === 'local' ? 'monitor' : 'cloud'} size={14} />
               </span>
               <select
                 id="model-provider-select"
@@ -767,10 +807,10 @@ export default function App() {
               >
                 {providerConfig?.providers?.map((prov) => (
                   <option key={prov.id} value={prov.id}>
-                    {prov.type === 'local' ? '💻 Local: ' : '☁️ Cloud: '}{prov.name} ({prov.model}){!prov.is_configured ? ' [Unconfigured]' : ''}
+                    {formatProviderOptionLabel(prov)}
                   </option>
                 )) || (
-                  <option value="ollama">💻 Local: Ollama (qwen2.5:1.5b)</option>
+                  <option value="ollama">Local · Ollama (qwen2.5:1.5b)</option>
                 )}
               </select>
             </div>
@@ -779,7 +819,7 @@ export default function App() {
                 className="provider-unconfigured-pill"
                 title="API key not found in backend environment. Configure GEMINI_API_KEY in .env to run cloud inference."
               >
-                ⚠️ Key Needed
+                <Icon name="alert-triangle" size={12} /> Key Needed
               </span>
             )}
           </div>
@@ -799,7 +839,7 @@ export default function App() {
               onClick={handleCreateNewSession}
               title="Start a new conversation"
             >
-              <span>+</span> New Conversation
+              <Icon name="plus" size={14} /> New Conversation
             </button>
           </div>
 
@@ -816,32 +856,95 @@ export default function App() {
                 <p className="sidebar-empty-sub">Click "+ New Conversation" above to start.</p>
               </div>
             ) : (
-              sessions.map(s => {
-                const isSelected = s.id === activeSessionId;
-                const displayTitle = s.title || 'Untitled Conversation';
-                const dateLabel = s.created_at
-                  ? new Date(s.created_at).toLocaleDateString([], {
-                      month: 'short',
-                      day: 'numeric',
-                    })
-                  : '';
+              <>
+                {/* Conversations with meaningful titles */}
+                {titledSessions.map(s => {
+                  const isSelected = s.id === activeSessionId;
+                  const displayTitle = s.title || 'Untitled Conversation';
+                  const dateLabel = s.created_at
+                    ? new Date(s.created_at).toLocaleDateString([], {
+                        month: 'short',
+                        day: 'numeric',
+                      })
+                    : '';
 
-                return (
-                  <button
-                    key={s.id}
-                    className={`session-item-btn ${isSelected ? 'selected' : ''}`}
-                    onClick={() => handleSelectSession(s.id)}
-                  >
-                    <div className="session-item-title" title={displayTitle}>
-                      {displayTitle}
-                    </div>
-                    <div className="session-item-meta">
-                      <span>{dateLabel}</span>
-                      {isSelected && <span className="active-tag">Active</span>}
-                    </div>
-                  </button>
-                );
-              })
+                  return (
+                    <button
+                      key={s.id}
+                      className={`session-item-btn ${isSelected ? 'selected' : ''}`}
+                      onClick={() => handleSelectSession(s.id)}
+                    >
+                      <div className="session-item-title" title={displayTitle}>
+                        {displayTitle}
+                      </div>
+                      <div className="session-item-meta">
+                        <span>{dateLabel}</span>
+                        {isSelected && <span className="active-tag">Active</span>}
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {/* Collapsible section for Untitled Conversations */}
+                {untitledSessions.length > 0 && (
+                  <div className="untitled-conversations-section">
+                    <button
+                      type="button"
+                      className={`untitled-accordion-header ${isUntitledOpen ? 'expanded' : ''} ${hasActiveUntitled ? 'contains-active' : ''}`}
+                      onClick={() => setIsUntitledOpen(prev => !prev)}
+                      aria-expanded={isUntitledOpen}
+                      title={isUntitledOpen ? 'Collapse untitled conversations' : 'Expand untitled conversations'}
+                    >
+                      <div className="untitled-header-main">
+                        <Icon
+                          name={isUntitledOpen ? 'chevron-down' : 'chevron-right'}
+                          size={13}
+                          className="untitled-chevron-icon"
+                        />
+                        <span className="untitled-header-label">
+                          Untitled conversations ({untitledSessions.length})
+                        </span>
+                      </div>
+                      {hasActiveUntitled && !isUntitledOpen && (
+                        <span className="active-tag active-tag-subtle" title="Active conversation is inside this section">
+                          Active
+                        </span>
+                      )}
+                    </button>
+
+                    {isUntitledOpen && (
+                      <div className="untitled-conversations-list">
+                        {untitledSessions.map(s => {
+                          const isSelected = s.id === activeSessionId;
+                          const displayTitle = s.title || 'Untitled Conversation';
+                          const dateLabel = s.created_at
+                            ? new Date(s.created_at).toLocaleDateString([], {
+                                month: 'short',
+                                day: 'numeric',
+                              })
+                            : '';
+
+                          return (
+                            <button
+                              key={s.id}
+                              className={`session-item-btn session-item-untitled ${isSelected ? 'selected' : ''}`}
+                              onClick={() => handleSelectSession(s.id)}
+                            >
+                              <div className="session-item-title" title={displayTitle}>
+                                {displayTitle}
+                              </div>
+                              <div className="session-item-meta">
+                                <span>{dateLabel}</span>
+                                {isSelected && <span className="active-tag">Active</span>}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </aside>
@@ -852,7 +955,9 @@ export default function App() {
           {error && (
             <div className="error-banner" role="alert">
               <div className="error-banner-content">
-                <span className="error-icon">⚠️</span>
+                <span className="error-icon">
+                  <Icon name="alert-triangle" size={15} />
+                </span>
                 <span className="error-text">{error}</span>
               </div>
               <div className="error-banner-actions">
@@ -862,7 +967,7 @@ export default function App() {
                   </button>
                 )}
                 <button className="btn-error-dismiss" onClick={() => setError(null)}>
-                  ✕
+                  <Icon name="x" size={13} />
                 </button>
               </div>
             </div>
@@ -878,7 +983,9 @@ export default function App() {
             ) : messages.length === 0 ? (
               /* Hero Empty State with Starter Prompts & Artifact Actions */
               <div className="placeholder-hero-card">
-                <div className="hero-icon">⚡</div>
+                <div className="hero-icon">
+                  <Icon name="sparkles" size={26} />
+                </div>
                 <h2 className="hero-title">Grounded Podcast Intelligence & Artifacts</h2>
                 <p className="hero-description">
                   Ask product management, growth loop, hiring, and startup strategy questions 
@@ -912,7 +1019,9 @@ export default function App() {
                     onClick={() => setIsHtmlModalOpen(true)}
                     disabled={isGeneratingHtml}
                   >
-                    <span className="prompt-arrow">🎨</span>
+                    <span className="prompt-arrow">
+                      <Icon name="layout" size={14} />
+                    </span>
                     <span>
                       <strong>Create HTML/CSS Artifact:</strong> Generate landing pages, dashboards & UI components with Pi Agent
                     </span>
@@ -924,7 +1033,9 @@ export default function App() {
                     onClick={() => setActiveArtifactTab('essay')}
                     disabled={isGeneratingEssay}
                   >
-                    <span className="prompt-arrow">✍️</span>
+                    <span className="prompt-arrow">
+                      <Icon name="pen" size={14} />
+                    </span>
                     <span>
                       <strong>Generate Ship 30 Essay:</strong> Synthesize podcast frameworks into a ~1,250-word digital essay
                     </span>
@@ -948,7 +1059,15 @@ export default function App() {
                       className={`message-row ${isUser ? 'user-row' : 'assistant-row'}`}
                     >
                       <div className={`message-avatar ${isUser ? 'user-avatar' : 'assistant-avatar'}`}>
-                        {isUser ? '👤' : isHtmlArtifact ? '🎨' : isEssayArtifact ? '📑' : '🎙️'}
+                        {isUser ? (
+                          <Icon name="user" size={16} />
+                        ) : isHtmlArtifact ? (
+                          <Icon name="layout" size={16} />
+                        ) : isEssayArtifact ? (
+                          <Icon name="pen" size={16} />
+                        ) : (
+                          <Icon name="mic" size={16} />
+                        )}
                       </div>
 
                       <div className={`message-bubble ${isUser ? 'user-bubble' : 'assistant-bubble'}`}>
@@ -1002,9 +1121,15 @@ export default function App() {
                                       : 'badge-retrieval-warn'
                                   }`}
                                 >
-                                  {retrievalStatus === 'success'
-                                    ? '✓ Transcripts Retrieved'
-                                    : '⚠ Insufficient Evidence'}
+                                  {retrievalStatus === 'success' ? (
+                                    <>
+                                      <Icon name="check" size={11} /> Transcripts Retrieved
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Icon name="alert-triangle" size={11} /> Insufficient Evidence
+                                    </>
+                                  )}
                                 </span>
                               )}
                               <span className="meta-badge badge-model-tag">
@@ -1012,12 +1137,12 @@ export default function App() {
                               </span>
                               {isHtmlArtifact && (
                                 <span className="meta-badge badge-html-artifact-tag">
-                                  🎨 HTML/CSS Artifact
+                                  <Icon name="layout" size={12} /> HTML/CSS Artifact
                                 </span>
                               )}
                               {isEssayArtifact && (
                                 <span className="meta-badge badge-essay-artifact-tag">
-                                  📑 Ship 30 Essay
+                                  <Icon name="pen" size={12} /> Ship 30 Essay
                                 </span>
                               )}
                             </div>
@@ -1049,7 +1174,7 @@ export default function App() {
                                   onClick={() => handleInspectMessageCitations(msg)}
                                   title="View retrieved sources in right panel"
                                 >
-                                  📚 {citations.length} {citations.length === 1 ? 'Citation' : 'Citations'}
+                                  <Icon name="book-open" size={12} /> {citations.length} {citations.length === 1 ? 'Citation' : 'Citations'}
                                 </button>
                               )}
                             </div>
@@ -1058,7 +1183,7 @@ export default function App() {
 
                         {msg.hasError && (
                           <div className="optimistic-error-tag">
-                            ⚠️ Network error during response. Check server logs or click "Sync Conversation".
+                            <Icon name="alert-triangle" size={14} /> Network error during response. Check server logs or click "Sync Conversation".
                           </div>
                         )}
                       </div>
@@ -1069,7 +1194,9 @@ export default function App() {
                 {/* Visible Thinking Indicator while LLM processes request */}
                 {isSubmitting && (
                   <div className="message-row assistant-row submitting-row">
-                    <div className="message-avatar assistant-avatar">🎙️</div>
+                    <div className="message-avatar assistant-avatar">
+                      <Icon name="mic" size={16} />
+                    </div>
                     <div className="message-bubble assistant-bubble submitting-bubble">
                       <div className="submitting-header">
                         <span className="message-sender">Lenny Growth Assistant</span>
@@ -1124,7 +1251,7 @@ export default function App() {
                 onClick={() => setIsHtmlModalOpen(true)}
                 title="Create a responsive HTML/CSS design artifact"
               >
-                <span>🎨</span> HTML
+                <Icon name="layout" size={13} /> HTML
               </button>
               <button
                 type="button"
@@ -1132,7 +1259,7 @@ export default function App() {
                 onClick={() => setActiveArtifactTab('essay')}
                 title="Open Ship 30 for 30 digital essay generator"
               >
-                <span>✍️</span> Essay
+                <Icon name="pen" size={13} /> Essay
               </button>
               <button
                 className="chat-submit-btn"
@@ -1142,14 +1269,16 @@ export default function App() {
                 title="Send message (Enter)"
               >
                 {isSubmitting ? (
-                  <span className="btn-thinking-spinner">⏳</span>
+                  <span className="btn-thinking-spinner">
+                    <Icon name="loader" size={14} className="spin" />
+                  </span>
                 ) : (
                   <span>Send</span>
                 )}
               </button>
             </div>
             <div className="input-helper-text">
-              Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line. Click <strong>🎨 HTML</strong> to build a web design, or <strong>✍️ Essay</strong> for a 1,250-word essay.
+              Press <strong>Enter</strong> to send, <strong>Shift + Enter</strong> for new line. Click <strong>HTML</strong> to build a web design, or <strong>Essay</strong> for a 1,250-word essay.
             </div>
           </div>
         </main>

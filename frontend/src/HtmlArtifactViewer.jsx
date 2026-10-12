@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Icon from './Icon.jsx';
 
 /**
  * HtmlArtifactViewer Component
@@ -61,7 +62,9 @@ export default function HtmlArtifactViewer({
         <div className="artifact-generating-state">
           <div className="generating-spinner-container">
             <div className="generating-pulse-ring"></div>
-            <div className="generating-core-icon">🎨</div>
+            <div className="generating-core-icon">
+              <Icon name="layout" size={24} />
+            </div>
           </div>
           <h3 className="generating-title">Generating HTML/CSS Artifact</h3>
           <p className="generating-stage-desc">
@@ -69,10 +72,17 @@ export default function HtmlArtifactViewer({
             domain-specific copy...
           </p>
           <div className="generating-timeline">
-            <div className="timeline-step done">✓ Analyzing prompt & design aesthetic</div>
-            <div className="timeline-step done">✓ Querying podcast transcripts (pgvector)</div>
+            <div className="timeline-step done">
+              <Icon name="check" size={12} /> Analyzing prompt &amp; design aesthetic
+            </div>
+            <div className="timeline-step done">
+              <Icon name="check" size={12} /> Querying podcast transcripts (pgvector)
+            </div>
             <div className="timeline-step active">
-              <span className="step-spin">⏳</span> Subprocess generating HTML & CSS rules...
+              <span className="step-spin">
+                <Icon name="loader" size={13} className="spin" />
+              </span>{' '}
+              Subprocess generating HTML &amp; CSS rules...
             </div>
             <div className="timeline-step pending">○ Server-side security sanitization</div>
             <div className="timeline-step pending">○ Strict CSP sandboxed preview assembly</div>
@@ -91,7 +101,9 @@ export default function HtmlArtifactViewer({
       <div className="artifact-viewer-container">
         <div className="artifact-error-card" role="alert">
           <div className="error-card-header">
-            <span className="error-icon">⚠️</span>
+            <span className="error-icon">
+              <Icon name="alert-triangle" size={18} />
+            </span>
             <h3>Artifact Generation Error</h3>
           </div>
           <p className="error-card-message">{generationError}</p>
@@ -258,13 +270,23 @@ export default function HtmlArtifactViewer({
       <div className="artifact-view-header">
         <div className="artifact-view-titles">
           <div className="artifact-badge-row">
-            <span className="artifact-type-badge">🎨 {displayType}</span>
+            <span className="artifact-type-badge">
+              <Icon name="layout" size={11} /> {displayType}
+            </span>
             <span
               className={`artifact-status-badge ${
                 isPartial ? 'status-badge-partial' : 'status-badge-completed'
               }`}
             >
-              {isPartial ? '⚠️ Partial' : '✓ Completed'}
+              {isPartial ? (
+                <>
+                  <Icon name="alert-triangle" size={11} /> Partial
+                </>
+              ) : (
+                <>
+                  <Icon name="check" size={11} /> Completed
+                </>
+              )}
             </span>
             <span
               className={`artifact-persistence-badge ${
@@ -276,11 +298,20 @@ export default function HtmlArtifactViewer({
                   : 'In-memory only (Database persistence failed)'
               }
             >
-              {isPersisted ? '💾 Saved' : '⚠️ Unsaved'}
+              {isPersisted ? (
+                <>
+                  <Icon name="check" size={11} /> Saved
+                </>
+              ) : (
+                <>
+                  <Icon name="alert-triangle" size={11} /> Unsaved
+                </>
+              )}
             </span>
             {artifact.created_at && (
               <span className="artifact-date-tag">
-                ⏱️ {new Date(artifact.created_at).toLocaleTimeString([], {
+                <Icon name="clock" size={11} />{' '}
+                {new Date(artifact.created_at).toLocaleTimeString([], {
                   hour: '2-digit',
                   minute: '2-digit',
                   second: '2-digit',
@@ -303,7 +334,7 @@ export default function HtmlArtifactViewer({
             onClick={() => setActiveCodeTab('preview')}
             title="Interactive Live Sandbox Preview"
           >
-            <span>👁️</span> Preview
+            <Icon name="eye" size={13} /> Preview
           </button>
           <button
             type="button"
@@ -313,7 +344,7 @@ export default function HtmlArtifactViewer({
             onClick={() => setActiveCodeTab('html')}
             title="Inspect HTML Source Code"
           >
-            <span>📄</span> HTML
+            <Icon name="code" size={13} /> HTML
           </button>
           <button
             type="button"
@@ -323,7 +354,7 @@ export default function HtmlArtifactViewer({
             onClick={() => setActiveCodeTab('css')}
             title="Inspect CSS Stylesheet"
           >
-            <span>🎨</span> CSS
+            <Icon name="sliders" size={13} /> CSS
           </button>
         </div>
       </div>
@@ -338,7 +369,9 @@ export default function HtmlArtifactViewer({
             disabled={!artifact.html}
             title="Copy HTML to clipboard"
           >
-            <span className="btn-icon">{copiedKey === 'html' ? '✓' : '📋'}</span>
+            <span className="btn-icon">
+              <Icon name={copiedKey === 'html' ? 'check' : 'copy'} size={13} />
+            </span>
             <span>{copiedKey === 'html' ? 'Copied HTML' : 'Copy HTML'}</span>
           </button>
           <button
@@ -348,7 +381,9 @@ export default function HtmlArtifactViewer({
             disabled={!artifact.css}
             title="Copy CSS to clipboard"
           >
-            <span className="btn-icon">{copiedKey === 'css' ? '✓' : '🎨'}</span>
+            <span className="btn-icon">
+              <Icon name={copiedKey === 'css' ? 'check' : 'copy'} size={13} />
+            </span>
             <span>{copiedKey === 'css' ? 'Copied CSS' : 'Copy CSS'}</span>
           </button>
           <button
@@ -360,7 +395,9 @@ export default function HtmlArtifactViewer({
             disabled={!artifact.combined_preview}
             title="Copy self-contained preview document"
           >
-            <span className="btn-icon">{copiedKey === 'all' ? '✓' : '📄'}</span>
+            <span className="btn-icon">
+              <Icon name={copiedKey === 'all' ? 'check' : 'copy'} size={13} />
+            </span>
             <span>{copiedKey === 'all' ? 'Copied All' : 'Copy Document'}</span>
           </button>
         </div>
@@ -372,7 +409,9 @@ export default function HtmlArtifactViewer({
             onClick={onOpenCreateModal}
             title="Generate a new HTML/CSS artifact"
           >
-            <span className="btn-icon">+</span>
+            <span className="btn-icon">
+              <Icon name="plus" size={13} />
+            </span>
             <span>New Artifact</span>
           </button>
         )}
@@ -380,7 +419,7 @@ export default function HtmlArtifactViewer({
 
       {copyFeedback && (
         <div className="copy-feedback-banner" role="status">
-          <span>✓</span> {copyFeedback}
+          <Icon name="check" size={13} /> {copyFeedback}
         </div>
       )}
 
@@ -388,7 +427,9 @@ export default function HtmlArtifactViewer({
       {persistenceErrors.length > 0 && (
         <div className="artifact-diag-persistence-card" role="alert">
           <div className="diag-alert-header">
-            <span className="diag-alert-icon">⚠️</span>
+            <span className="diag-alert-icon">
+              <Icon name="alert-triangle" size={15} />
+            </span>
             <span className="diag-alert-title">Database Persistence Error</span>
           </div>
           <p className="diag-alert-desc">
@@ -406,7 +447,7 @@ export default function HtmlArtifactViewer({
       {(isPartial || securityNotices.length > 0 || modelAdvisories.length > 0) && (
         <div className="artifact-diagnostics-card">
           <div className="diagnostics-title">
-            <span>🛡️</span> Security & Layout Diagnostics
+            <Icon name="shield" size={14} /> Security &amp; Layout Diagnostics
           </div>
           {isPartial && (
             <p className="diagnostics-summary">
@@ -452,7 +493,9 @@ export default function HtmlArtifactViewer({
               />
             ) : (
               <div className="iframe-missing-preview-card">
-                <p>⚠️ Preview document was not provided by the backend.</p>
+                <p>
+                  <Icon name="alert-triangle" size={14} /> Preview document was not provided by the backend.
+                </p>
               </div>
             )}
           </div>
@@ -496,7 +539,7 @@ export default function HtmlArtifactViewer({
             onClick={onViewSources}
             title="Inspect grounded transcript citations in Sources tab"
           >
-            <span>📚</span> View {artifact.citations.length} Grounded Podcast Sources →
+            <Icon name="book-open" size={13} /> View {artifact.citations.length} Grounded Podcast Sources →
           </button>
         </div>
       )}

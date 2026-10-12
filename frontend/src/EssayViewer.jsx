@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import SafeMarkdown from './SafeMarkdown.jsx';
 import { validateEssayTopic } from './api.js';
+import Icon from './Icon.jsx';
 
 /**
  * EssayViewer Component
@@ -96,7 +97,9 @@ export default function EssayViewer({
         <div className="essay-generating-state">
           <div className="generating-spinner-container">
             <div className="generating-pulse-ring"></div>
-            <div className="generating-core-icon">📝</div>
+            <div className="generating-core-icon">
+              <Icon name="pen" size={24} />
+            </div>
           </div>
           <h3 className="generating-title">Generating your essay...</h3>
           <p className="generating-description">
@@ -104,7 +107,9 @@ export default function EssayViewer({
             and drafting 5 grounded sections using your local Ollama model.
           </p>
           <div className="generating-notice-box">
-            <div className="notice-icon">⏱️</div>
+            <div className="notice-icon">
+              <Icon name="clock" size={16} />
+            </div>
             <div className="notice-content">
               <strong>Local Inference Note:</strong>
               <p>
@@ -129,7 +134,9 @@ export default function EssayViewer({
       <div className="essay-viewer-card">
         <div className="essay-form-header">
           <div className="essay-form-title-group">
-            <span className="form-icon">✍️</span>
+            <span className="form-icon">
+              <Icon name="pen" size={18} />
+            </span>
             <div>
               <h3 className="essay-form-title">Generate Ship 30 for 30 Essay</h3>
               <p className="essay-form-subtitle">
@@ -150,7 +157,9 @@ export default function EssayViewer({
 
         {generationError && (
           <div className="essay-error-banner" role="alert">
-            <span className="error-icon">⚠️</span>
+            <span className="error-icon">
+              <Icon name="alert-triangle" size={18} />
+            </span>
             <span className="error-msg">{generationError}</span>
           </div>
         )}
@@ -234,7 +243,7 @@ export default function EssayViewer({
               className="btn-generate-submit"
               disabled={isGenerating || !activeSessionId || !topic.trim()}
             >
-              <span>🚀</span> Generate Essay
+              <Icon name="sparkles" size={14} /> Generate Essay
             </button>
           </div>
         </form>
@@ -255,12 +264,13 @@ export default function EssayViewer({
     ? 'status-pill-partial'
     : 'status-pill-info';
 
+  const statusIcon = isCompleted ? 'check' : 'alert-triangle';
   const statusPillLabel = isCompleted
-    ? '✓ Completed'
+    ? 'Completed'
     : isPartial
-    ? '⚠️ Partial Result'
+    ? 'Partial Result'
     : isInsufficient
-    ? '⚠️ Insufficient Evidence'
+    ? 'Insufficient Evidence'
     : essay.status;
 
   return (
@@ -269,7 +279,7 @@ export default function EssayViewer({
       <div className="essay-toolbar">
         <div className="toolbar-left toolbar-status-row">
           <span className={`status-pill ${statusPillClass}`}>
-            {statusPillLabel}
+            <Icon name={statusIcon} size={11} /> {statusPillLabel}
           </span>
           <span className="word-count-pill">
             <strong>{essay.word_count?.toLocaleString()}</strong> / {(essay.target_word_count || 1250).toLocaleString()} words
@@ -283,7 +293,7 @@ export default function EssayViewer({
             onClick={handleCopyMarkdown}
             title="Copy raw Markdown to clipboard"
           >
-            {copied ? '✓ Copied!' : '📋 Copy Markdown'}
+            <Icon name={copied ? 'check' : 'copy'} size={13} /> {copied ? 'Copied!' : 'Copy Markdown'}
           </button>
           <button
             type="button"
@@ -291,14 +301,14 @@ export default function EssayViewer({
             onClick={() => setShowForm(true)}
             title="Generate a new essay for this session"
           >
-            ✍️ New Essay
+            <Icon name="pen" size={13} /> New Essay
           </button>
         </div>
       </div>
 
       {copyFeedback && (
         <div className="copy-feedback-toast" role="status">
-          {copyFeedback}
+          <Icon name="check" size={13} /> {copyFeedback}
         </div>
       )}
 
@@ -306,7 +316,7 @@ export default function EssayViewer({
       {isPartial && (
         <div className="partial-warning-card" role="alert">
           <div className="partial-warning-header">
-            <span>⚠️</span>
+            <Icon name="alert-triangle" size={15} />
             <strong>Editorial Review Recommended</strong>
           </div>
           <p className="partial-warning-text">
@@ -320,7 +330,9 @@ export default function EssayViewer({
       {/* Partial Corpus Index Disclaimer */}
       {essay.disclaimer && (
         <div className="partial-index-callout">
-          <div className="disclaimer-title">⚠️ Corpus Coverage Notice</div>
+          <div className="disclaimer-title">
+            <Icon name="alert-triangle" size={14} /> Corpus Coverage Notice
+          </div>
           <p className="disclaimer-text">{essay.disclaimer}</p>
         </div>
       )}
@@ -363,7 +375,9 @@ export default function EssayViewer({
           /* Streamlined Evidence Banner linking to the dedicated Sources tab to prevent duplicate lists */
           <section className="essay-evidence-summary-banner" aria-label="Podcast Source Evidence">
             <div className="evidence-summary-content">
-              <span className="evidence-icon">🎧</span>
+              <span className="evidence-icon">
+                <Icon name="mic" size={15} />
+              </span>
               <div className="evidence-text-group">
                 <strong className="evidence-summary-title">
                   {citations.length} Grounded Podcast {citations.length === 1 ? 'Source' : 'Sources'}
@@ -388,7 +402,7 @@ export default function EssayViewer({
           /* Fallback citation card list for historical essays without a terminal Sources section */
           <section className="essay-sources-section" aria-label="Podcast Source Evidence">
             <h3 className="sources-heading">
-              <span>🎙️</span> Grounded Podcast Sources ({citations.length})
+              <Icon name="mic" size={15} /> Grounded Podcast Sources ({citations.length})
             </h3>
             <div className="citations-list">
               {citations.map((cite, index) => {
@@ -416,7 +430,7 @@ export default function EssayViewer({
                     <div className="citation-meta-row">
                       {cite.timestamp_label && (
                         <span className="citation-timestamp-pill">
-                          ⏱️ {cite.timestamp_label}
+                          <Icon name="clock" size={11} /> {cite.timestamp_label}
                         </span>
                       )}
                       {simPercent && (
@@ -440,8 +454,9 @@ export default function EssayViewer({
                           rel="noopener noreferrer"
                           className="btn-youtube-link"
                         >
-                          <span>▶</span> Watch on YouTube{' '}
-                          {cite.timestamp_label ? `at ${cite.timestamp_label}` : ''} ↗
+                          <Icon name="play" size={11} /> Watch on YouTube{' '}
+                          {cite.timestamp_label ? `at ${cite.timestamp_label}` : ''}{' '}
+                          <Icon name="external-link" size={11} />
                         </a>
                       </div>
                     )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { validateArtifactPrompt } from './api.js';
+import Icon from './Icon.jsx';
 
 const CATEGORY_OPTIONS = [
   { value: 'landing_page', label: 'Landing Page' },
@@ -21,6 +22,8 @@ const STYLE_PRESETS = [
 
 /**
  * Centered modal dialog for creating HTML/CSS design artifacts.
+ * Styled with luxury enterprise palette (deep charcoal header, soft ivory reading surfaces,
+ * emerald primary accents, and champagne-gold brand badge).
  */
 export default function HtmlArtifactModal({
   isOpen,
@@ -101,55 +104,61 @@ export default function HtmlArtifactModal({
 
   return (
     <div
-      className="modal-backdrop"
+      className="artifact-modal-overlay modal-backdrop"
       onClick={handleBackdropClick}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="artifact-modal-title"
+      aria-labelledby="modal-title"
     >
-      <div className="modal-container">
+      <div className="artifact-modal-container modal-container">
         {/* Header */}
-        <div className="modal-header">
-          <div className="modal-header-icon-group">
-            <span className="modal-header-icon">🎨</span>
-            <div>
-              <h2 id="artifact-modal-title" className="modal-title">
-                Create HTML/CSS Artifact
-              </h2>
-              <p className="modal-subtitle">
-                Generate responsive, sanitized web layouts powered by Pi Coding Agent &amp;{' '}
-                <span className="modal-model-badge">
-                  {activeProvider
-                    ? `${activeProvider.type === 'local' ? '💻' : '☁️'} ${activeProvider.name}`
-                    : "Pi Agent"}
-                </span>
-              </p>
-            </div>
+        <div className="modal-header-gradient modal-header">
+          <div className="modal-header-content">
+            <span className="modal-brand-badge">
+              <Icon name="layout" size={12} />
+              <span>Pi Coding Agent · Design Artifact</span>
+            </span>
+            <h2 id="modal-title" className="modal-title-text modal-title">
+              Create HTML/CSS Artifact
+            </h2>
+            <p className="modal-subtitle-text modal-subtitle">
+              Generate responsive, sanitized web layouts powered by Pi Coding Agent &amp;{' '}
+              <span className="modal-model-badge">
+                {activeProvider ? (
+                  <>
+                    <Icon name={activeProvider.type === 'local' ? 'monitor' : 'cloud'} size={12} />
+                    <span>{activeProvider.name}</span>
+                  </>
+                ) : (
+                  <span>Pi Agent</span>
+                )}
+              </span>
+            </p>
           </div>
           <button
             type="button"
-            className="modal-close-btn btn-modal-close"
+            className="btn-modal-close modal-close-btn"
             onClick={onClose}
             disabled={isGenerating}
             aria-label="Close dialog"
             title="Close (Esc)"
           >
-            ✕
+            <Icon name="x" size={14} />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="modal-form">
-          <div className="modal-body">
+          <div className="modal-form-scrollable modal-body">
             {/* Description / Prompt */}
-            <div className="form-group">
-              <label htmlFor="artifact-prompt-input" className="form-label required-label">
+            <div className="modal-field-group form-group">
+              <label htmlFor="artifact-prompt-input" className="modal-label form-label required-label">
                 Artifact Description
               </label>
               <textarea
                 id="artifact-prompt-input"
                 ref={textareaRef}
-                className="form-textarea"
+                className="modal-textarea form-textarea"
                 rows={4}
                 placeholder="e.g., Create a modern SaaS landing page for an AI growth assistant with a hero section, feature cards, pricing section and strong call-to-action."
                 value={prompt}
@@ -173,13 +182,13 @@ export default function HtmlArtifactModal({
 
             {/* Category & Title 2-Column Row */}
             <div className="form-row-2col">
-              <div className="form-group">
-                <label htmlFor="artifact-type-select" className="form-label">
+              <div className="modal-field-group form-group">
+                <label htmlFor="artifact-type-select" className="modal-label form-label">
                   Artifact Category
                 </label>
                 <select
                   id="artifact-type-select"
-                  className="form-select"
+                  className="modal-select form-select"
                   value={artifactType}
                   onChange={(e) => setArtifactType(e.target.value)}
                   disabled={isGenerating}
@@ -192,14 +201,14 @@ export default function HtmlArtifactModal({
                 </select>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="artifact-title-input" className="form-label">
+              <div className="modal-field-group form-group">
+                <label htmlFor="artifact-title-input" className="modal-label form-label">
                   Artifact Title <span className="optional-tag">(Optional)</span>
                 </label>
                 <input
                   id="artifact-title-input"
                   type="text"
-                  className="form-input"
+                  className="modal-input form-input"
                   placeholder="e.g., Growth Loop Landing Page"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -210,13 +219,13 @@ export default function HtmlArtifactModal({
             </div>
 
             {/* Design & Style Preferences */}
-            <div className="form-group">
-              <label htmlFor="artifact-style-preset" className="form-label">
-                Design & Style Aesthetic
+            <div className="modal-field-group form-group">
+              <label htmlFor="artifact-style-preset" className="modal-label form-label">
+                Design &amp; Style Aesthetic
               </label>
               <select
                 id="artifact-style-preset"
-                className="form-select"
+                className="modal-select form-select"
                 value={stylePreset}
                 onChange={(e) => setStylePreset(e.target.value)}
                 disabled={isGenerating}
@@ -231,7 +240,7 @@ export default function HtmlArtifactModal({
               {stylePreset === 'Custom Description' && (
                 <input
                   type="text"
-                  className="form-input custom-style-input"
+                  className="modal-input form-input custom-style-input"
                   placeholder="Specify palette, typography, visual constraints..."
                   value={customStyle}
                   onChange={(e) => setCustomStyle(e.target.value)}
@@ -242,12 +251,12 @@ export default function HtmlArtifactModal({
             </div>
 
             {/* Podcast Evidence Grounding Checkbox */}
-            <div className={`form-checkbox-card ${includePodcastContext ? 'is-checked' : ''}`}>
-              <label htmlFor="artifact-include-podcast" className="checkbox-label-container">
+            <div className={`modal-checkbox-card form-checkbox-card ${includePodcastContext ? 'is-checked' : ''}`}>
+              <label htmlFor="artifact-include-podcast" className="accessible-checkbox-label checkbox-label-container">
                 <input
                   id="artifact-include-podcast"
                   type="checkbox"
-                  className="form-checkbox"
+                  className="modal-checkbox-input form-checkbox"
                   checked={includePodcastContext}
                   onChange={(e) => setIncludePodcastContext(e.target.checked)}
                   disabled={isGenerating}
@@ -256,7 +265,7 @@ export default function HtmlArtifactModal({
                   <span className="checkbox-title">
                     Grounded in Lenny's Podcast Frameworks
                   </span>
-                  <span className="checkbox-description">
+                  <span className="checkbox-desc checkbox-description">
                     Retrieve relevant expert transcript passages and embed verified citations directly into the design copy.
                   </span>
                 </div>
@@ -266,13 +275,14 @@ export default function HtmlArtifactModal({
             {/* Validation Error Banner */}
             {validationError && (
               <div className="form-error-alert" role="alert">
-                <span>⚠️</span> {validationError}
+                <Icon name="alert-triangle" size={15} />
+                <span>{validationError}</span>
               </div>
             )}
           </div>
 
           {/* Footer Controls */}
-          <div className="modal-footer">
+          <div className="modal-footer-actions modal-footer">
             <button
               type="button"
               className="btn-modal-cancel btn-modal-secondary"
@@ -288,12 +298,12 @@ export default function HtmlArtifactModal({
             >
               {isGenerating ? (
                 <>
-                  <span className="btn-spinner-icon">⏳</span>
+                  <Icon name="loader" size={14} className="spin" />
                   <span>Generating Artifact...</span>
                 </>
               ) : (
                 <>
-                  <span>✨</span>
+                  <Icon name="sparkles" size={14} />
                   <span>Generate Artifact</span>
                 </>
               )}
